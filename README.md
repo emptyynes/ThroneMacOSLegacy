@@ -32,6 +32,12 @@ The Homebrew cask (macOS 14.4 or newer, Apple Silicon and Intel) does both for y
 brew install --cask throneproj/tap/throne
 ```
 
+### macOS 10.13 High Sierra
+
+The official macOS build requires 10.15 or newer; the `macoslegacy-amd64` asset lowers that to 10.15 only. A working 10.13 setup — a patched QtCore, an AppKit compatibility shim and a cgo-free core — is documented in [`legacy/`](legacy/README.md).
+
+> **All changes in this fork were made by an LLM.** The patches, build scripts, shim and documentation under `legacy/` were written by a language model (Hermes Agent) driven by the repository owner, who ran the commands and verified the result on a MacBook Pro 13" Late 2011 running 10.13.6. The `dev` sources themselves are untouched upstream code.
+
 ## Supported protocols
 
 - SOCKS

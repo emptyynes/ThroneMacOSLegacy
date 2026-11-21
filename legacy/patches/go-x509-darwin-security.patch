@@ -1,0 +1,56 @@
+--- a/src/crypto/x509/internal/macos/security.go
++++ b/src/crypto/x509/internal/macos/security.go
+@@ -135,13 +135,35 @@
+ }
+ func x509_SecCertificateCopyData_trampoline()
+ 
+-//go:cgo_import_dynamic x509_SecTrustCopyCertificateChain SecTrustCopyCertificateChain "/System/Library/Frameworks/Security.framework/Versions/A/Security"
++//go:cgo_import_dynamic x509_SecTrustGetCertificateCount SecTrustGetCertificateCount "/System/Library/Frameworks/Security.framework/Versions/A/Security"
+ 
++func SecTrustGetCertificateCount(trustObj CFRef) int {
++	return int(syscall(abi.FuncPCABI0(x509_SecTrustGetCertificateCount_trampoline), uintptr(trustObj), 0, 0, 0, 0, 0))
++}
++func x509_SecTrustGetCertificateCount_trampoline()
++
++//go:cgo_import_dynamic x509_SecTrustGetCertificateAtIndex SecTrustGetCertificateAtIndex "/System/Library/Frameworks/Security.framework/Versions/A/Security"
++
++func SecTrustGetCertificateAtIndex(trustObj CFRef, ix int) CFRef {
++	return CFRef(syscall(abi.FuncPCABI0(x509_SecTrustGetCertificateAtIndex_trampoline), uintptr(trustObj), uintptr(ix), 0, 0, 0, 0))
++}
++func x509_SecTrustGetCertificateAtIndex_trampoline()
++
++// SecTrustCopyCertificateChain is built on the pre-10.15 accessors so that Go
++// binaries keep running on older macOS releases; the chain contents are the same.
+ func SecTrustCopyCertificateChain(trustObj CFRef) (CFRef, error) {
+-	ret := syscall(abi.FuncPCABI0(x509_SecTrustCopyCertificateChain_trampoline), uintptr(trustObj), 0, 0, 0, 0, 0)
+-	if ret == 0 {
+-		return 0, OSStatus{"SecTrustCopyCertificateChain", int32(ret)}
++	count := SecTrustGetCertificateCount(trustObj)
++	if count <= 0 {
++		return 0, OSStatus{"SecTrustCopyCertificateChain", -1}
++	}
++	chain := CFArrayCreateMutable()
++	if chain == 0 {
++		return 0, OSStatus{"SecTrustCopyCertificateChain", -2}
++	}
++	for i := 0; i < count; i++ {
++		if cert := SecTrustGetCertificateAtIndex(trustObj, i); cert != 0 {
++			CFArrayAppendValue(chain, cert)
++		}
+ 	}
+-	return CFRef(ret), nil
++	return chain, nil
+ }
+-func x509_SecTrustCopyCertificateChain_trampoline()
+--- a/src/crypto/x509/internal/macos/security.s
++++ b/src/crypto/x509/internal/macos/security.s
+@@ -23,5 +23,7 @@
+ 	JMP x509_SecTrustEvaluateWithError(SB)
+ TEXT ·x509_SecCertificateCopyData_trampoline(SB),NOSPLIT,$0-0
+ 	JMP x509_SecCertificateCopyData(SB)
+-TEXT ·x509_SecTrustCopyCertificateChain_trampoline(SB),NOSPLIT,$0-0
+-	JMP x509_SecTrustCopyCertificateChain(SB)
++TEXT ·x509_SecTrustGetCertificateCount_trampoline(SB),NOSPLIT,$0-0
++	JMP x509_SecTrustGetCertificateCount(SB)
++TEXT ·x509_SecTrustGetCertificateAtIndex_trampoline(SB),NOSPLIT,$0-0
++	JMP x509_SecTrustGetCertificateAtIndex(SB)
